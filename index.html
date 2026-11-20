@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>운동 일지</title>
+<meta name="theme-color" content="#3b5bdb">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="운동 일지">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+:root{--bg:#f4f5f9;--card:#fff;--tx:#1c1e26;--mu:#6b7080;--ac:#3b5bdb;--bd:#dde0ea;--dg:#d6336c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161c;--card:#1e212b;--tx:#eceef4;--mu:#9aa0b4;--ac:#748ffc;--bd:#2f3342;--dg:#f783ac}}
+:root[data-theme="dark"]{--bg:#14161c;--card:#1e212b;--tx:#eceef4;--mu:#9aa0b4;--ac:#748ffc;--bd:#2f3342;--dg:#f783ac}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;padding:14px;max-width:560px;margin-inline:auto}
+h1{font-size:20px;margin:6px 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+label{font-size:12px;color:var(--mu);display:block;margin:8px 0 3px}
+input{width:100%;padding:11px;font-size:16px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+button{font-size:15px;padding:12px;border-radius:10px;border:0;background:var(--ac);color:#fff;width:100%;margin-top:12px}
+button.s{background:var(--bg);color:var(--tx);border:1px solid var(--bd);margin-top:8px}
+.d{font-weight:700;color:var(--ac);margin:12px 0 4px;font-size:14px}
+.it{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);font-size:15px}
+.it small{color:var(--mu);display:block}
+.x{background:none;color:var(--dg);width:auto;margin:0;padding:6px 10px;font-size:18px}
+textarea{width:100%;height:120px;font-size:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);padding:8px;margin-top:8px}
+#msg{font-size:13px;color:var(--mu);text-align:center;min-height:18px}
+#splash{position:fixed;inset:0;z-index:99;background:#3b5bdb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s}
+#splash b{color:#fff;font-size:26px}
+#splash.off{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="splash"><svg width="200" height="200" viewBox="0 0 512 512"><rect x="136" y="242" width="240" height="28" rx="14" fill="#fff"/><rect x="114" y="186" width="44" height="140" rx="14" fill="#fff"/><rect x="354" y="186" width="44" height="140" rx="14" fill="#fff"/><rect x="82" y="208" width="32" height="96" rx="12" fill="#fff"/><rect x="398" y="208" width="32" height="96" rx="12" fill="#fff"/></svg><b>운동 일지</b></div>
+<h1>💪 운동 일지</h1>
+<div class="card">
+<label>날짜</label><input id="date">
+<label>종목</label><input id="ex" list="exl" placeholder="예: 랫 풀다운">
+<datalist id="exl"><option>랫 풀다운<option>어시스트 풀업<option>레그 프레스<option>레그 익스텐션<option>시티드 레그컬<option>체스트 프레스<option>숄더 프레스<option>플랭크</datalist>
+<div class="row">
+<div><label>무게(kg)</label><input id="w" type="number" inputmode="decimal" placeholder="-"></div>
+<div><label>횟수</label><input id="r" type="number" inputmode="numeric"></div>
+<div><label>세트</label><input id="s" type="number" inputmode="numeric" value="3"></div>
+</div>
+<button id="add">기록 추가</button>
+</div>
+<div id="msg"></div>
+<div class="card"><div id="list"></div></div>
+<div class="card" id="cloud">
+<div class="d" style="margin-top:0">☁️ 클라우드 동기화</div>
+<div id="cst" style="font-size:13px;color:var(--mu)">로그인하면 폰을 바꿔도 기록을 옮길 수 있어요</div>
+<button id="login">Google로 로그인</button>
+<div id="cbtns" style="display:none">
+<button id="up">⬆️ 클라우드에 저장</button>
+<button class="s" id="down">⬇️ 클라우드에서 불러오기</button>
+<button class="s" id="logout">로그아웃</button>
+</div>
+</div>
+<div class="card">
+<button class="s" id="copy" style="margin-top:0">CSV 복사하기</button>
+<textarea id="csv" readonly placeholder="CSV가 여기에 표시돼요"></textarea>
+</div>
+<script>
+const KEY="workout_log_v1";
+const SEED=[["26_11_17","윗몸일으키기","",10,2],["26_11_17","랫 풀다운",15,10,3],["26_11_17","레그 익스텐션",15,10,3],["26_11_18","레그 프레스",10,10,3],["26_11_18","레그 익스텐션",15,10,3],["26_11_18","시티드 레그컬",15,10,3],["26_11_19","크런치","",10,3],["26_11_19","시티드 레그컬",15,12,3],["26_11_19","레그 프레스",10,10,3],["26_11_20","랫 풀다운",15,10,3],["26_11_20","체스트 프레스",10,5,3],["26_11_20","숄더 프레스",5,8,3]].map(a=>({date:a[0],ex:a[1],w:a[2],r:a[3],s:a[4]}));
+let data=[];
+try{const v=localStorage.getItem(KEY);data=v?JSON.parse(v):SEED.slice()}catch(e){data=SEED.slice()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){msg("저장 실패 — CSV를 복사해 두세요")}}
+function msg(t){document.getElementById("msg").textContent=t}
+const $=id=>document.getElementById(id);
+function today(){const d=new Date(),p=n=>String(n).padStart(2,"0");return String(d.getFullYear()).slice(2)+"_"+p(d.getMonth()+1)+"_"+p(d.getDate())}
+$("date").value=today();
+function render(){
+const g={};data.forEach((x,i)=>{(g[x.date]=g[x.date]||[]).push([x,i])});
+const keys=Object.keys(g).sort().reverse();
+$("list").innerHTML=keys.length?keys.map(k=>'<div class="d">'+k+'</div>'+g[k].map(([x,i])=>'<div class="it"><div>'+esc(x.ex)+'<small>'+(x.w===""?"맨몸":x.w+"kg")+' · '+x.r+'회 × '+x.s+'세트</small></div><button class="x" data-i="'+i+'">✕</button></div>').join("")).join(""):"기록이 없어요";
+$("csv").value=toCsv();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function toCsv(){return "날짜,종목,무게,횟수,세트\n"+data.map(x=>[x.date,x.ex,x.w===""?"-":x.w,x.r,x.s].join(",")).join("\n")}
+$("add").onclick=()=>{
+const ex=$("ex").value.trim(),r=$("r").value;
+if(!ex||!r){msg("종목과 횟수를 입력해 주세요");return}
+data.push({date:$("date").value.trim()||today(),ex:ex,w:$("w").value,r:Number(r),s:Number($("s").value)||1});
+save();$("ex").value="";$("w").value="";$("r").value="";msg("추가했어요 ✅");render();
+};
+$("list").onclick=e=>{const b=e.target.closest(".x");if(!b)return;data.splice(Number(b.dataset.i),1);save();render()};
+$("copy").onclick=async()=>{
+const t=toCsv();
+try{await navigator.clipboard.writeText(t);msg("CSV 복사 완료! 메모장이나 시트에 붙여넣기 하세요")}
+catch(e){$("csv").select();msg("아래 칸을 길게 눌러 직접 복사해 주세요")}
+};
+window.getData=()=>data;window.setData=d=>{data=d;save();render()};
+render();
+setTimeout(()=>document.getElementById("splash").classList.add("off"),1500);
+document.getElementById("splash").onclick=function(){this.classList.add("off")};
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+</script>
+<script type="module">
+/* ▼▼ Firebase 콘솔에서 복사한 firebaseConfig를 여기에 붙여넣기 ▼▼ */
+const firebaseConfig={
+  apiKey:"여기에",
+  authDomain:"여기에",
+  projectId:"여기에",
+  appId:"여기에"
+};
+/* ▲▲ ------------------------------------------------ ▲▲ */
+const $=id=>document.getElementById(id),st=t=>$("cst").textContent=t;
+if(firebaseConfig.apiKey==="여기에"){st("Firebase 설정이 아직 안 됐어요");$("login").disabled=true}
+else{
+const V="https://www.gstatic.com/firebasejs/10.14.1/";
+const {initializeApp}=await import(V+"firebase-app.js");
+const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}=await import(V+"firebase-auth.js");
+const {getFirestore,doc,setDoc,getDoc}=await import(V+"firebase-firestore.js");
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+let user=null;
+onAuthStateChanged(auth,u=>{user=u;$("login").style.display=u?"none":"block";$("cbtns").style.display=u?"block":"none";st(u?(u.email+" 로그인됨"):"로그인하면 폰을 바꿔도 기록을 옮길 수 있어요")});
+$("login").onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){st("로그인 실패: "+(e.code||e.message))}};
+$("logout").onclick=()=>signOut(auth);
+$("up").onclick=async()=>{try{await setDoc(doc(db,"logs",user.uid),{json:JSON.stringify(window.getData()),at:Date.now()});st("저장 완료 ✅ ("+window.getData().length+"개)")}catch(e){st("저장 실패: "+(e.code||e.message))}};
+$("down").onclick=async()=>{try{const s=await getDoc(doc(db,"logs",user.uid));if(!s.exists()){st("클라우드에 저장된 기록이 없어요");return}
+if(!confirm("지금 폰의 기록을 클라우드 기록으로 바꿀까요?"))return;window.setData(JSON.parse(s.data().json));st("불러오기 완료 ✅")}catch(e){st("불러오기 실패: "+(e.code||e.message))}};
+}
+</script>
+</body>
+</html>
